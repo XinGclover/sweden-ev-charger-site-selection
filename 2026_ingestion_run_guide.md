@@ -1,5 +1,10 @@
 # Databricks 2026 incremental ingestion
 
+The package also contains scb_ingest.py. Place this Python file beside the three SCB
+Bronze notebooks in the same Databricks Git folder before running them. Each SCB notebook
+imports the module and passes its notebook Spark session explicitly. Commit the module
+and notebooks together. The electricity notebook remains independent.
+
 The package contains four Bronze notebooks (population, registrations, vehicles, electricity) plus updated Silver and Gold notebooks. Keep the existing five Bronze managed Delta tables in db_labb2. Keep kommun_price_area_2024.csv beside Gold.
 
 ## Verified on 29 September 2026
