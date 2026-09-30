@@ -5,37 +5,75 @@ SparkSession is passed explicitly by the calling notebook.
 """
 
 import json
+import time
 from datetime import datetime, timezone
 from functools import reduce
 from operator import mul
 from zoneinfo import ZoneInfo
 
 import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
 from pyspark.sql.types import (
     IntegerType, StringType, StructField, StructType, TimestampType
 )
 
 SCB_BASE = "https://statistikdatabasen.scb.se/api/v2/tables"
 
-def http_session():
-    """Create an HTTP session that retries transient API failures."""
-    session = requests.Session()
-    retry = Retry(
-        total=5, connect=5, read=5,
-        backoff_factor=1,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["GET"],
-    )
-    session.mount("https://", HTTPAdapter(max_retries=retry))
-    return session
+MAX_ATTEMPTS = 6  # First request plus up to five retries
+RETRYABLE_STATUS = {429, 500, 502, 503, 504}
 
-def response_json(session, url, params=None):
-    """Request a JSON document and raise an error for unsuccessful responses."""
-    response = session.get(url, params=params, timeout=(10, 90))
-    response.raise_for_status()
-    return response.json()
+
+def http_session():
+    """Use explicit retries in response_json, without HTTPAdapter retries."""
+    return requests.Session()
+
+
+def response_json(session, url, params=None, *, context="API request"):
+    """Log retries; raise a contextual final failure for ADF/Jobs alerts."""
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        retry_after = None
+        try:
+            response = session.get(url, params=params, timeout=(10, 90))
+            if response.status_code in RETRYABLE_STATUS:
+                reason = f"HTTP {response.status_code}"
+                retry_after = response.headers.get("Retry-After")
+            else:
+                response.raise_for_status()
+                try:
+                    return response.json()
+                except ValueError as exc:
+                    raise RuntimeError(
+                        f"{context}: HTTP {response.status_code}, but response is not valid JSON; {exc}"
+                    ) from exc
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            reason = f"{type(exc).__name__}: {exc}"
+        except requests.RequestException as exc:
+            raise RuntimeError(
+                f"{context}: request failed on attempt {attempt}/{MAX_ATTEMPTS}; "
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
+        if attempt == MAX_ATTEMPTS:
+            message = (
+                f"{context}: API request failed after {MAX_ATTEMPTS} attempts; "
+                f"last error: {reason}; url={url}"
+            )
+            print(f"[API FAILED] {message}", flush=True)
+            raise RuntimeError(message)
+        wait_seconds = 2 ** attempt
+        if retry_after:
+            if retry_after.strip().isdigit():
+                wait_seconds = max(wait_seconds, int(retry_after))
+            else:
+                try:
+                    from email.utils import parsedate_to_datetime
+                    retry_at = parsedate_to_datetime(retry_after)
+                    wait_seconds = max(wait_seconds, (retry_at - datetime.now(timezone.utc)).total_seconds())
+                except (ValueError, TypeError, OverflowError):
+                    pass
+        print(
+            f"[API RETRY] {context}: attempt {attempt}/{MAX_ATTEMPTS} failed "
+            f"({reason}); retrying in {wait_seconds}s", flush=True,
+        )
+        time.sleep(wait_seconds)
 
 def dimension_codes(payload, dimension_id):
     """Return JSON-stat category codes in their declared value-array order."""
@@ -74,12 +112,14 @@ def ingest_scb(spark, table_id, content_code, filters, start_year, cadence,
     required = {"ContentsCode": [content_code], **filters}
     today = datetime.now(ZoneInfo("Europe/Stockholm")).date()
     with http_session() as session:
-        reference = response_json(session, f"{SCB_BASE}/TAB638/metadata", {"lang": "sv"})
+        reference = response_json(session, f"{SCB_BASE}/TAB638/metadata", {"lang": "sv"},
+                                  context=f"SCB reference metadata TAB638; target={table_id}")
         kommun = sorted(code for code in dimension_codes(reference, "Region")
                         if len(code) == 4 and code.isdigit())
         if len(kommun) != 290:
             raise ValueError("TAB638 metadata must contain 290 municipality codes")
-        metadata = response_json(session, f"{SCB_BASE}/{table_id}/metadata", {"lang": "sv"})
+        metadata = response_json(session, f"{SCB_BASE}/{table_id}/metadata", {"lang": "sv"},
+                                 context=f"SCB table={table_id}; metadata; target={target_table}")
         for dim, codes in required.items():
             if not set(codes) <= set(dimension_codes(metadata, dim)):
                 raise ValueError(f"{target_table}: missing {dim} codes")
@@ -129,8 +169,17 @@ def ingest_scb(spark, table_id, content_code, filters, start_year, cadence,
             params={"lang":"sv","valueCodes[ContentsCode]":content_code,
                     "valueCodes[Region]":",".join(batch),"valueCodes[Tid]":period,
                     **{f"valueCodes[{k}]":",".join(v) for k,v in filters.items()}}
-            payload=response_json(session,f"{SCB_BASE}/{table_id}/data",params)
-            validate_jsonstat(payload,batch,[period],required)
+            context = (f"SCB table={table_id}; period={period}; batch={batch_no}; "
+                       f"target={target_table}")
+            payload=response_json(session,f"{SCB_BASE}/{table_id}/data",params,
+                                  context=context)
+            try:
+                validate_jsonstat(payload,batch,[period],required)
+            except (AssertionError, KeyError, TypeError, ValueError) as exc:
+                raise RuntimeError(
+                    f"{context}: JSON-stat validation failed; "
+                    f"{type(exc).__name__}: {exc}"
+                ) from exc
             row=[("SCB",table_id,batch_no,datetime.now(timezone.utc),
                   json.dumps(payload,ensure_ascii=False,separators=(",",":")))]
             (spark.createDataFrame(row,SCB_SCHEMA).write.format("delta")
