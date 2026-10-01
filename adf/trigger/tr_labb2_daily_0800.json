@@ -1,0 +1,24 @@
+{
+	"name": "tr_labb2_daily_0800",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "pl_labb2_databricks_job",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Day",
+				"interval": 1,
+				"startTime": "2026-10-02T08:00:00",
+				"timeZone": "W. Europe Standard Time"
+			}
+		}
+	}
+}
