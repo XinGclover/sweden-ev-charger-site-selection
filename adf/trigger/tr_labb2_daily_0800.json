@@ -2,7 +2,7 @@
 	"name": "tr_labb2_daily_0800",
 	"properties": {
 		"annotations": [],
-		"runtimeState": "Stopped",
+		"runtimeState": "Started",
 		"pipelines": [
 			{
 				"pipelineReference": {
