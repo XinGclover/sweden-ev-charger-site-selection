@@ -7,13 +7,13 @@
 			"domain": "https://adb-7405610869945324.4.azuredatabricks.net",
 			"authentication": "MSI",
 			"workspaceResourceId": "/subscriptions/a04eeee3-503e-4d2f-b805-fa9d7a58316e/resourceGroups/rg-databricks-lab/providers/Microsoft.Databricks/workspaces/dbw-labb2-hybrid",
-			"newClusterNodeType": "Standard_D4s_v3",
+			"newClusterNodeType": "Standard_D4a_v4",
 			"newClusterNumOfWorker": "1",
 			"newClusterSparkEnvVars": {
 				"PYSPARK_PYTHON": "/databricks/python3/bin/python3"
 			},
 			"newClusterVersion": "14.3.x-scala2.12",
-			"newClusterDriverNodeType": "Standard_D4s_v3",
+			"newClusterDriverNodeType": "Standard_D4a_v4",
 			"clusterOption": "Fixed",
 			"newClusterInitScripts": [],
 			"dataSecurityMode": "SINGLE_USER"
