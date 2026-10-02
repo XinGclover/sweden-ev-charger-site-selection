@@ -7,6 +7,10 @@
 			"metadata": "Data Factory name",
 			"defaultValue": "adf-labb2"
 		},
+		"ls_databricks_notebooks_properties_typeProperties_existingClusterId": {
+			"type": "string",
+			"defaultValue": "1002-122934-rxwbkg5c"
+		},
 		"containerUri": {
 			"type": "string",
 			"metadata": "URI to storage account containing linked ARM templates"
@@ -33,6 +37,9 @@
 				"parameters": {
 					"factoryName": {
 						"value": "[parameters('factoryName')]"
+					},
+					"ls_databricks_notebooks_properties_typeProperties_existingClusterId": {
+						"value": "[parameters('ls_databricks_notebooks_properties_typeProperties_existingClusterId')]"
 					}
 				}
 			},

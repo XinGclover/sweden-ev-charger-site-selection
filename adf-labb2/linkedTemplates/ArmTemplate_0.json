@@ -6,6 +6,10 @@
 			"type": "string",
 			"metadata": "Data Factory name",
 			"defaultValue": "adf-labb2"
+		},
+		"ls_databricks_notebooks_properties_typeProperties_existingClusterId": {
+			"type": "string",
+			"defaultValue": "1002-122934-rxwbkg5c"
 		}
 	},
 	"variables": {
@@ -23,6 +27,22 @@
 					"domain": "https://adb-7405615792786389.9.azuredatabricks.net",
 					"authentication": "MSI",
 					"workspaceResourceId": "/subscriptions/a04eeee3-503e-4d2f-b805-fa9d7a58316e/resourceGroups/rg-databricks-lab/providers/Microsoft.Databricks/workspaces/dbw-cloud-computing-2026"
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/ls_databricks_notebooks')]",
+			"type": "Microsoft.DataFactory/factories/linkedServices",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"type": "AzureDatabricks",
+				"typeProperties": {
+					"domain": "https://adb-7405610869945324.4.azuredatabricks.net",
+					"authentication": "MSI",
+					"workspaceResourceId": "/subscriptions/a04eeee3-503e-4d2f-b805-fa9d7a58316e/resourceGroups/rg-databricks-lab/providers/Microsoft.Databricks/workspaces/dbw-labb2-hybrid",
+					"existingClusterId": "[parameters('ls_databricks_notebooks_properties_typeProperties_existingClusterId')]"
 				}
 			},
 			"dependsOn": []
@@ -64,6 +84,177 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/pl_labb2_databricks_notebooks')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "bronze_population",
+						"type": "DatabricksNotebook",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/cindygao7809@gmail.com/sweden-ev-charger-site-selection/bronze_population"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_notebooks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "bronze_registration",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "bronze_population",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/cindygao7809@gmail.com/sweden-ev-charger-site-selection/bronze_registrations"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_notebooks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "bronze_use",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "bronze_registration",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/cindygao7809@gmail.com/sweden-ev-charger-site-selection/bronze_vehicles"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_notebooks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "bronze_electricity",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "bronze_use",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/cindygao7809@gmail.com/sweden-ev-charger-site-selection/bronze_electricity"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_notebooks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "silver",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "bronze_electricity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/cindygao7809@gmail.com/sweden-ev-charger-site-selection/silver_databricks_2026"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_notebooks",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "gold",
+						"type": "DatabricksNotebook",
+						"dependsOn": [
+							{
+								"activity": "silver",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"notebookPath": "/Users/cindygao7809@gmail.com/sweden-ev-charger-site-selection/gold_databricks_2026"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_notebooks",
+							"type": "LinkedServiceReference"
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/linkedServices/ls_databricks_notebooks')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/tr_labb2_daily_0800')]",
 			"type": "Microsoft.DataFactory/factories/triggers",
 			"apiVersion": "2018-06-01",
@@ -91,6 +282,36 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/pipelines/pl_labb2_databricks_job')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/tr_labb2_daily_1900')]",
+			"type": "Microsoft.DataFactory/factories/triggers",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"annotations": [],
+				"runtimeState": "Started",
+				"pipelines": [
+					{
+						"pipelineReference": {
+							"referenceName": "pl_labb2_databricks_notebooks",
+							"type": "PipelineReference"
+						},
+						"parameters": {}
+					}
+				],
+				"type": "ScheduleTrigger",
+				"typeProperties": {
+					"recurrence": {
+						"frequency": "Day",
+						"interval": 1,
+						"startTime": "2026-10-02T19:00:00",
+						"timeZone": "W. Europe Standard Time"
+					}
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/pipelines/pl_labb2_databricks_notebooks')]"
 			]
 		}
 	]

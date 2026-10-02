@@ -4,6 +4,9 @@
 	"parameters": {
 		"factoryName": {
 			"value": "adf-labb2"
+		},
+		"ls_databricks_notebooks_properties_typeProperties_existingClusterId": {
+			"value": "1002-122934-rxwbkg5c"
 		}
 	}
 }
