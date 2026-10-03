@@ -1,12 +1,12 @@
 {
-	"name": "tr_labb2_daily_0800",
+	"name": "tr_labb2_daily_1900",
 	"properties": {
 		"annotations": [],
 		"runtimeState": "Started",
 		"pipelines": [
 			{
 				"pipelineReference": {
-					"referenceName": "pl_labb2_databricks_job",
+					"referenceName": "pl_labb2_databricks_notebooks",
 					"type": "PipelineReference"
 				}
 			}
@@ -16,7 +16,7 @@
 			"recurrence": {
 				"frequency": "Day",
 				"interval": 1,
-				"startTime": "2026-10-02T08:00:00",
+				"startTime": "2026-10-02T19:00:00",
 				"timeZone": "W. Europe Standard Time"
 			}
 		}
