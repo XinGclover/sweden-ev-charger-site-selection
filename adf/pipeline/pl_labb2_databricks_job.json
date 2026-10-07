@@ -3,7 +3,7 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "run_medallion_job",
+				"name": "run_bronze_scb",
 				"type": "DatabricksJob",
 				"dependsOn": [],
 				"policy": {
@@ -15,7 +15,7 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"jobId": "306990052673174"
+					"jobId": "840097813894884"
 				},
 				"linkedServiceName": {
 					"referenceName": "ls_databricks_job",
