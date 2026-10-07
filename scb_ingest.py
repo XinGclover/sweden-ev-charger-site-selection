@@ -2,10 +2,10 @@
 
 Each call checks published source periods and existing Delta raw responses.
 SparkSession is passed explicitly by the calling notebook.
+HTTP requests are attempted once; configure retries on Databricks tasks.
 """
 
 import json
-import time
 from datetime import datetime, timezone
 from functools import reduce
 from operator import mul
@@ -18,62 +18,34 @@ from pyspark.sql.types import (
 
 SCB_BASE = "https://statistikdatabasen.scb.se/api/v2/tables"
 
-MAX_ATTEMPTS = 6  # First request plus up to five retries
-RETRYABLE_STATUS = {429, 500, 502, 503, 504}
-
-
 def http_session():
-    """Use explicit retries in response_json, without HTTPAdapter retries."""
+    """Create a session without HTTP-level retries; Jobs owns task retries."""
     return requests.Session()
 
 
 def response_json(session, url, params=None, *, context="API request"):
-    """Log retries; raise a contextual final failure for ADF/Jobs alerts."""
-    for attempt in range(1, MAX_ATTEMPTS + 1):
-        retry_after = None
-        try:
-            response = session.get(url, params=params, timeout=(10, 90))
-            if response.status_code in RETRYABLE_STATUS:
-                reason = f"HTTP {response.status_code}"
-                retry_after = response.headers.get("Retry-After")
-            else:
-                response.raise_for_status()
-                try:
-                    return response.json()
-                except ValueError as exc:
-                    raise RuntimeError(
-                        f"{context}: HTTP {response.status_code}, but response is not valid JSON; {exc}"
-                    ) from exc
-        except (requests.Timeout, requests.ConnectionError) as exc:
-            reason = f"{type(exc).__name__}: {exc}"
-        except requests.RequestException as exc:
-            raise RuntimeError(
-                f"{context}: request failed on attempt {attempt}/{MAX_ATTEMPTS}; "
-                f"{type(exc).__name__}: {exc}"
-            ) from exc
-        if attempt == MAX_ATTEMPTS:
-            message = (
-                f"{context}: API request failed after {MAX_ATTEMPTS} attempts; "
-                f"last error: {reason}; url={url}"
-            )
-            print(f"[API FAILED] {message}", flush=True)
-            raise RuntimeError(message)
-        wait_seconds = 2 ** attempt
-        if retry_after:
-            if retry_after.strip().isdigit():
-                wait_seconds = max(wait_seconds, int(retry_after))
-            else:
-                try:
-                    from email.utils import parsedate_to_datetime
-                    retry_at = parsedate_to_datetime(retry_after)
-                    wait_seconds = max(wait_seconds, (retry_at - datetime.now(timezone.utc)).total_seconds())
-                except (ValueError, TypeError, OverflowError):
-                    pass
-        print(
-            f"[API RETRY] {context}: attempt {attempt}/{MAX_ATTEMPTS} failed "
-            f"({reason}); retrying in {wait_seconds}s", flush=True,
+    """Request once and raise a contextual failure for Databricks/ADF."""
+    try:
+        response = session.get(url, params=params, timeout=(10, 90))
+        response.raise_for_status()
+    except requests.RequestException as exc:
+        message = (
+            f"{context}: API request failed; "
+            f"{type(exc).__name__}: {exc}; url={url}; "
+            "HTTP-level retries are disabled; retries are managed by Databricks task settings."
         )
-        time.sleep(wait_seconds)
+        print(f"[API FAILED] {message}", flush=True)
+        raise RuntimeError(message) from exc
+    try:
+        return response.json()
+    except ValueError as exc:
+        message = (
+            f"{context}: HTTP {response.status_code}, but response is not valid JSON; "
+            f"{exc}; url={url}"
+        )
+        print(f"[API FAILED] {message}", flush=True)
+        raise RuntimeError(message) from exc
+
 
 def dimension_codes(payload, dimension_id):
     """Return JSON-stat category codes in their declared value-array order."""
