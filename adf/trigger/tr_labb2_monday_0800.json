@@ -1,5 +1,5 @@
 {
-	"name": "tr_labb2_daily_0800",
+	"name": "tr_labb2_monday_0800",
 	"properties": {
 		"annotations": [],
 		"runtimeState": "Stopped",
@@ -15,8 +15,8 @@
 		"typeProperties": {
 			"recurrence": {
 				"frequency": "Day",
-				"interval": 1,
-				"startTime": "2026-10-02T08:00:00",
+				"interval": 7,
+				"startTime": "2026-10-04T08:00:00",
 				"timeZone": "W. Europe Standard Time"
 			}
 		}
