@@ -23,7 +23,7 @@
 			"properties": {
 				"activities": [
 					{
-						"name": "run_medallion_job",
+						"name": "run_bronze_scb",
 						"type": "DatabricksJob",
 						"dependsOn": [],
 						"policy": {
@@ -35,11 +35,171 @@
 						},
 						"userProperties": [],
 						"typeProperties": {
-							"jobId": "306990052673174"
+							"jobId": "840097813894884"
 						},
 						"linkedServiceName": {
 							"referenceName": "ls_databricks_job",
 							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "run_bronze_electricity",
+						"type": "DatabricksJob",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"jobId": "177478097955645"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_job",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "run_silver",
+						"type": "DatabricksJob",
+						"dependsOn": [
+							{
+								"activity": "run_bronze_electricity",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "run_bronze_scb",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"jobId": "373052847039736"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_job",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "run_gold",
+						"type": "DatabricksJob",
+						"dependsOn": [
+							{
+								"activity": "run_silver",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"jobId": "589104943281191"
+						},
+						"linkedServiceName": {
+							"referenceName": "ls_databricks_job",
+							"type": "LinkedServiceReference"
+						}
+					},
+					{
+						"name": "fail_bronze_scb",
+						"type": "Fail",
+						"dependsOn": [
+							{
+								"activity": "run_bronze_scb",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"message": {
+								"value": "@concat('SCB Bronze job failed. Check the Databricks run for the failed task, table, period and batch. Error: ', activity('run_bronze_scb').error.message)",
+								"type": "Expression"
+							},
+							"errorCode": "BRONZE_SCB_FAILED"
+						}
+					},
+					{
+						"name": "fail_bronze_electricity",
+						"type": "Fail",
+						"dependsOn": [
+							{
+								"activity": "run_bronze_electricity",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"message": {
+								"value": "@concat('Electricity Bronze job failed. Check the Databricks run for the failed date and price area. Error: ', activity('run_bronze_electricity').error.message)",
+								"type": "Expression"
+							},
+							"errorCode": "BRONZE_ELECTRICITY_FAILED"
+						}
+					},
+					{
+						"name": "fail_silver",
+						"type": "Fail",
+						"dependsOn": [
+							{
+								"activity": "run_silver",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"message": {
+								"value": "@concat('Silver transformation job failed. Check the Databricks run for details. Error: ', activity('run_silver').error.message)",
+								"type": "Expression"
+							},
+							"errorCode": "SILVER_FAILED"
+						}
+					},
+					{
+						"name": "fail_gold",
+						"type": "Fail",
+						"dependsOn": [
+							{
+								"activity": "run_gold",
+								"dependencyConditions": [
+									"Failed"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"message": {
+								"value": "@concat('Gold transformation job failed. Check the Databricks run for details. Error: ', activity('run_gold').error.message)",
+								"type": "Expression"
+							},
+							"errorCode": "GOLD_FAILED"
 						}
 					}
 				],
